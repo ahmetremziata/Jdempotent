@@ -20,9 +20,11 @@ import java.util.concurrent.TimeUnit;
 public class CouchbaseIdempotentRepository implements IdempotentRepository {
     private final CouchbaseConfig couchbaseConfig;
     private final Collection collection;
-    public CouchbaseIdempotentRepository(CouchbaseConfig couchbaseConfig, Collection collection) {
+    private final DateHelper dateHelper;
+    public CouchbaseIdempotentRepository(CouchbaseConfig couchbaseConfig, Collection collection, DateHelper dateHelper) {
         this.couchbaseConfig = couchbaseConfig;
         this.collection = collection;
+        this.dateHelper = dateHelper;
     }
 
     @Override
@@ -42,7 +44,7 @@ public class CouchbaseIdempotentRepository implements IdempotentRepository {
 
     @Override
     public void store(IdempotencyKey key, IdempotentRequestWrapper requestObject, Long ttl, TimeUnit timeUnit) {
-        Duration ttlDuration = DateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit);
+        Duration ttlDuration = dateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit);
         collection.upsert(
             key.getKeyValue(), new IdempotentRequestResponseWrapper(requestObject),
             UpsertOptions.upsertOptions().expiry(ttlDuration)
@@ -68,7 +70,7 @@ public class CouchbaseIdempotentRepository implements IdempotentRepository {
         if (contains(key)) {
             IdempotentRequestResponseWrapper requestResponseWrapper = collection.get(key.getKeyValue()).contentAs(IdempotentRequestResponseWrapper.class);
             requestResponseWrapper.setResponse(idempotentResponse);
-            Duration ttlDuration = DateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit);
+            Duration ttlDuration = dateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit);
             collection.upsert(
                 key.getKeyValue(), new IdempotentRequestResponseWrapper(request),
                 UpsertOptions.upsertOptions().expiry(ttlDuration));

@@ -40,5 +40,4 @@ public class RedisTemplateMocker {
 
         return redisTemplate;
     }
-
 }

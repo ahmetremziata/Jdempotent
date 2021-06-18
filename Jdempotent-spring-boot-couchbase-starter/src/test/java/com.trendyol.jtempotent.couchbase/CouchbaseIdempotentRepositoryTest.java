@@ -10,7 +10,6 @@ import com.trendyol.jdempotent.core.model.IdempotentResponseWrapper;
 import com.trendyol.jdempotent.couchbase.CouchbaseConfig;
 import com.trendyol.jdempotent.couchbase.CouchbaseIdempotentRepository;
 import com.trendyol.jdempotent.couchbase.helper.DateHelper;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,8 +17,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -45,14 +42,13 @@ public class CouchbaseIdempotentRepositoryTest {
   private ArgumentCaptor<IdempotentRequestResponseWrapper> captor;
   @Captor
   private ArgumentCaptor<UpsertOptions> upsertOptionCaptor;
-
-  private MockedStatic<DateHelper> dateHelper;
+  @Mock
+  private DateHelper dateHelper;
 
   @BeforeEach
   public void setUp() {
     couchbaseIdempotentRepository = new CouchbaseIdempotentRepository(couchbaseConfig,
-        collection);
-    dateHelper = Mockito.mockStatic(DateHelper.class);
+        collection, dateHelper);
   }
 
   @Test
@@ -128,12 +124,9 @@ public class CouchbaseIdempotentRepositoryTest {
     Long ttl = 1L;
     TimeUnit timeUnit = TimeUnit.DAYS;
     Duration duration = Duration.ofDays(1L);
-    dateHelper.when(() -> DateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit))
-        .thenReturn(duration);
+    when(dateHelper.getDurationByTtlAndTimeUnit(any(), any())).thenReturn(duration);
 
     IdempotentRequestResponseWrapper responseWrapper = new IdempotentRequestResponseWrapper(wrapper);
-    /*var mockUpsertOption = Mockito.mockStatic(UpsertOptions.class);
-    when(((UpsertOptions)mockUpsertOption)).thenReturn((UpsertOptions) mockUpsertOption);*/
 
     //When
     couchbaseIdempotentRepository.store(idempotencyKey, wrapper, ttl, timeUnit);
@@ -144,8 +137,7 @@ public class CouchbaseIdempotentRepositoryTest {
         upsertOptionCaptor.capture());
     IdempotentRequestResponseWrapper idempotentRequestResponseWrapper = captor.getValue();
     assertEquals(idempotentRequestResponseWrapper.getResponse(), responseWrapper.getResponse());
-    dateHelper.verify(() -> DateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit));
-    //verify((UpsertOptions)mockUpsertOption, times(1)).expiry(duration);
+    verify(dateHelper, times(1)).getDurationByTtlAndTimeUnit(ttl, timeUnit);
   }
 
   @Test
@@ -153,7 +145,6 @@ public class CouchbaseIdempotentRepositoryTest {
     //Given
     IdempotencyKey idempotencyKey = new IdempotencyKey("key");
     IdempotentRequestWrapper wrapper = new IdempotentRequestWrapper();
-    IdempotentRequestResponseWrapper responseWrapper = new IdempotentRequestResponseWrapper(wrapper);
 
     //When
     couchbaseIdempotentRepository.remove(idempotencyKey);
@@ -183,7 +174,6 @@ public class CouchbaseIdempotentRepositoryTest {
     var argumentCaptor = ArgumentCaptor.forClass(IdempotentRequestResponseWrapper.class);
     verify(collection).upsert(eq(key.getKeyValue()), argumentCaptor.capture());
     IdempotentRequestResponseWrapper value = argumentCaptor.getValue();
-    // assertEquals(value.getResponse(),wrapper.getResponse());
     assertEquals(wrapper.getResponse().getResponse(), "response");
     assertEquals(value.getResponse().getResponse(), "response");
   }
@@ -221,8 +211,7 @@ public class CouchbaseIdempotentRepositoryTest {
     Long ttl = 1L;
     TimeUnit timeUnit = TimeUnit.DAYS;
     Duration duration = Duration.ofDays(1L);
-    dateHelper.when(() -> DateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit))
-        .thenReturn(duration);
+    when(dateHelper.getDurationByTtlAndTimeUnit(any(), any())).thenReturn(duration);
 
     //When
     couchbaseIdempotentRepository.setResponse(key, request, response, ttl, timeUnit);
@@ -231,7 +220,7 @@ public class CouchbaseIdempotentRepositoryTest {
     verify(collection, times(1)).upsert(eq(key.getKeyValue()),
         captor.capture(),
         upsertOptionCaptor.capture());
-    dateHelper.verify(() -> DateHelper.getDurationByTtlAndTimeUnit(ttl, timeUnit));
+    verify(dateHelper, times(1)).getDurationByTtlAndTimeUnit(ttl, timeUnit);
   }
 
   @Test
@@ -251,5 +240,6 @@ public class CouchbaseIdempotentRepositoryTest {
 
     //Then
     verify(collection, times(0)).upsert(any(), any(), any());
+    verify(dateHelper, times(0)).getDurationByTtlAndTimeUnit(any(), any());
   }
 }
